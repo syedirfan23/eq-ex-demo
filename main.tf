@@ -18,57 +18,22 @@ provider "google" {
   zone    = var.zone
 }
 
-resource "google_project_service" "api-cloudresourcemanager" {
-  project = "var.project"
-  service = "cloudresourcemanager.googleapis.com"
-
-  timeouts {
-    create = "30m"
-    update = "40m"
-  }
-
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "api-compute" {
-  project = "var.project"
-  service = "compute.googleapis.com"
-
-  timeouts {
-    create = "30m"
-    update = "40m"
-  }
-
-  disable_dependent_services = true
-}
-
-module "projects_iam_bindings" {
-  source  = "terraform-google-modules/iam/google//modules/projects_iam"
-  version = "~> 6.4"
-
-  projects = [var.project]
-
-  bindings = {
-    "roles/compute.networkAdmin" = [
-      "user:eqex-petclinic-demo@proven-agility-317407.iam.gserviceaccount.com"
-    ]    
-  }
-}
-
 resource "google_compute_instance" "infra-instance" {
   name          = "infra-instance"
-  machine_type  = "f1-micro"
+  machine_type  = "n2-standard-2"
   tags          = ["bastion"]
 
-  boot_disk {
+  boot_disk {    
+    device_name = "eq-ex-infra-disk"
     initialize_params {
-      image = "debian-cloud/debian-9"
+      image = "debian-cloud/debian-10"
+      size = "50"
     }
   }
 
   network_interface {
     network     = var.network_name
-    subnetwork  = "subnet-01"
+    subnetwork  = "public-subnet"
     access_config {
     }
   }
@@ -82,18 +47,20 @@ resource "google_compute_instance" "infra-instance" {
 
 resource "google_compute_instance" "app-instance" {
   name          = "app-instance"
-  machine_type  = "f1-micro"
+  machine_type  = "n2-standard-2"
   tags          = ["application"]
 
-  boot_disk {
+  boot_disk {    
+    device_name = "eq-ex-app-disk"
     initialize_params {
-      image = "debian-cloud/debian-9"
+      image = "debian-cloud/debian-10"
+      size = "50"
     }
   }
 
   network_interface {
     network     = var.network_name
-    subnetwork  = "subnet-02"
+    subnetwork  = "private-subnet"
   }
 
   metadata = {
@@ -112,16 +79,15 @@ module "vpc" {
 
     subnets = [
         {
-            subnet_name           = "subnet-01"
+            subnet_name           = "public-subnet"
             subnet_ip             = "172.20.10.0/24"
             subnet_region         = var.region
         },
         {
-            subnet_name           = "subnet-02"
+            subnet_name           = "private-subnet"
             subnet_ip             = "172.20.20.0/24"
             subnet_region         = var.region
             subnet_private_access = "true"
-            description           = "This subnet has a description"
         }
     ]
 
@@ -155,7 +121,7 @@ resource "google_compute_firewall" "ingress-ssh-into-bastion-fw" {
 
   allow {
     protocol = "tcp"
-    ports    = ["22"]
+    ports    = ["22", "8080"]
     # ports    = ["22", "80", "8080", "1000-2000"]
   }
 

@@ -27,5 +27,5 @@ variable "gce_ssh_pub_key_file" {
 }
 
 variable "instance_startup_script" {
-  default = "./setup-bastion.sh"
+  default = "./bin/setup-bastion.sh"
 }
